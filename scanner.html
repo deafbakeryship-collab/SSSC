@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>餅乾高手 - 進階進出庫系統</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; margin: 0; padding: 15px; text-align: center; }
+        #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 10px; overflow: hidden; }
+        .card { background: white; padding: 20px; border-radius: 15px; margin-top: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .product-name { font-size: 20px; color: #2c3e50; font-weight: bold; margin: 10px 0; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .qty-input-group { margin: 20px 0; }
+        input[type="number"] { width: 80px; padding: 10px; font-size: 20px; text-align: center; border: 2px solid #ddd; border-radius: 5px; }
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; padding: 15px; font-size: 18px; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; }
+        .btn-in { background: #27ae60; }
+        .btn-out { background: #c0392b; }
+        #log { font-size: 12px; color: #7f8c8d; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="reader"></div>
+
+    <div class="card">
+        <div id="display-name" class="product-name">請掃描餅乾條碼</div>
+        <div id="display-id" style="color:#999; font-size: 12px;">ID: ---</div>
+
+        <div class="qty-input-group">
+            <label>異動數量：</label><br><br>
+            <input type="number" id="qty" value="1" min="1">
+        </div>
+        
+        <div class="btn-group">
+            <button class="btn-in" onclick="submitData('入庫')">📥 批次入庫</button>
+            <button class="btn-out" onclick="submitData('出庫')">📤 批次出庫</button>
+        </div>
+        <div id="log">系統就緒</div>
+    </div>
+
+    <script>
+        const GAS_URL = "你的_GAS_網址";
+        let lastResult = "";
+
+        // 模擬產品對照表 (實務上可改為從 GAS 抓取)
+        const products = {
+            "CK-001": "巧克力手工曲奇",
+            "CK-002": "燕麥蔓越莓餅乾",
+            "CK-003": "伯爵紅茶小酥餅"
+        };
+
+        function onScanSuccess(decodedText) {
+            if (decodedText !== lastResult) {
+                lastResult = decodedText;
+                document.getElementById('display-id').innerText = "ID: " + decodedText;
+                // 自動對照名稱
+                document.getElementById('display-name').innerText = products[decodedText] || "未知產品";
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
+        }
+
+        function submitData(action) {
+            const qty = document.getElementById('qty').value;
+            if (!lastResult) return alert("請先掃描！");
+            
+            document.getElementById('log').innerText = "上傳中...";
+
+            const data = {
+                barcode: lastResult,
+                name: products[lastResult] || "未知產品",
+                action: action,
+                amount: parseInt(qty)
+            };
+
+            fetch(GAS_URL, {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                alert(`成功！${data.name} ${action} ${qty} 包`);
+                document.getElementById('log').innerText = "更新完成";
+                // 重置
+                document.getElementById('qty').value = 1;
+            });
+        }
+
+        const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        scanner.render(onScanSuccess);
+    </script>
+</body>
+</html>
